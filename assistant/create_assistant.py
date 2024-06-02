@@ -12,6 +12,8 @@ api_key = os.getenv("OPENAI_API_KEY")
 # Create an OpenAI client
 client = OpenAI(api_key=api_key)
 
+# TODO: None of this has been implemented yet
+
 assistant = client.beta.assistants.create(
     name="Portfolio Manager Analyst Bot",
     instructions="""
