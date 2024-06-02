@@ -3,7 +3,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from typing_extensions import override
 from openai import AssistantEventHandler
-from custom_tools import run_prefect_code
+from custom_tools import run_prefect_code_tool, run_prefect_code
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,7 +14,6 @@ api_key = os.getenv("OPENAI_API_KEY")
 # Create an OpenAI client
 client = OpenAI(api_key=api_key)
 
-
 def create_assistant(client):
     assistant = client.beta.assistants.create(
         name="Prefect Assistant",
@@ -23,25 +22,20 @@ def create_assistant(client):
             "Always run the code in a Docker container until it runs without error. Use the `run_prefect_code` tool to execute Prefect code."
             "Always respond with the code example AND importantly the version of prefect that was used to run the code."
         ),
-        tools=[
-            run_prefect_code,
-        ],
+        tools=[run_prefect_code_tool],
         model="gpt-4o",
     )
     return assistant
 
-
 def create_thread(client):
     thread = client.beta.threads.create()
     return thread
-
 
 def add_message_to_thread(client, thread_id, content):
     message = client.beta.threads.messages.create(
         thread_id=thread_id, role="user", content=content
     )
     return message
-
 
 class EventHandler(AssistantEventHandler):
     @override
@@ -64,7 +58,6 @@ class EventHandler(AssistantEventHandler):
                 for output in delta.code_interpreter.outputs:
                     if output.type == "logs":
                         print(f"\n{output.logs}", flush=True)
-
 
 if __name__ == "__main__":
     # Create the assistant

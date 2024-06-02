@@ -1,7 +1,6 @@
 import docker
 import os
 
-
 def create_dockerfile():
     dockerfile_content = """
     FROM python:3.9-slim
@@ -16,7 +15,6 @@ def create_dockerfile():
     """
     with open("Dockerfile", "w") as f:
         f.write(dockerfile_content)
-
 
 def run_in_docker(example_code):
     # Create Dockerfile
@@ -62,7 +60,6 @@ def run_in_docker(example_code):
     except Exception as e:
         return f"Unexpected error: {e}"
 
-
 def execute_example_in_docker(example_code):
     try:
         # Run example code in Docker
@@ -78,9 +75,26 @@ def execute_example_in_docker(example_code):
     except Exception as e:
         return {"error": str(e)}
 
+def run_prefect_code(params):
+    example_code = params.get("example_code")
+    if not example_code:
+        return {"error": "No code provided"}
+    return execute_example_in_docker(example_code)
 
-run_prefect_code = {
-# add tool here
+run_prefect_code_tool = {
+    "type": "function",
+    "name": "run_prefect_code",
+    "description": "Run Prefect code in a Docker container",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "example_code": {
+                "type": "string",
+                "description": "The Prefect code to run",
+            },
+        },
+        "required": ["example_code"],
+    }
 }
 
 if __name__ == "__main__":
