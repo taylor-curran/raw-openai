@@ -79,7 +79,20 @@ def run_prefect_code(params):
     example_code = params.get("example_code")
     if not example_code:
         return {"error": "No code provided"}
-    return execute_example_in_docker(example_code)
+    
+    retries = 5
+    for attempt in range(retries):
+        result = execute_example_in_docker(example_code)
+        if not result.get("error"):
+            return result
+        example_code = update_example_code(example_code, attempt + 1)
+    
+    return {"error": "Failed to run the code successfully after 5 attempts"}
+
+def update_example_code(example_code, attempt):
+    # Modify the example code based on the attempt number
+    # This is a placeholder function; you'll need to implement the logic to modify the code.
+    return example_code
 
 run_prefect_code_tool = {
     "type": "function",

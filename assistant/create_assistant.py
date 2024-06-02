@@ -18,9 +18,13 @@ def create_assistant(client):
     assistant = client.beta.assistants.create(
         name="Prefect Assistant",
         instructions=(
+            "You only answer questions after verifying the code works. Use the `run_prefect_code` tool to execute Prefect code."
             "You are an assistant specialized in Prefect. Reference Prefect documentation."
             "Always run the code in a Docker container until it runs without error. Use the `run_prefect_code` tool to execute Prefect code."
+            "Don't give an answer unless you are able to verify your answer works"
             "Always respond with the code example AND importantly the version of prefect that was used to run the code."
+            "If the code fails, try up to 5 times with different versions. Stop after 5 tries."
+            "If you cannot run the code, apologize and indicate you could not verify the answer."
         ),
         tools=[run_prefect_code_tool],
         model="gpt-4o",
