@@ -1,6 +1,7 @@
 import docker
 import os
 
+
 def create_dockerfile():
     dockerfile_content = """
     FROM python:3.9-slim
@@ -25,15 +26,42 @@ def run_in_docker(example_code):
     with open("example.py", "w") as f:
         f.write(example_code)
 
-    # Build and run the Docker container
-    client = docker.from_env()
-    image, logs = client.images.build(path=".", tag="example_image")
-    container = client.containers.run(image="example_image", detach=True)
-    result = container.logs().decode("utf-8")
-    container.stop()
-    container.remove()
+    try:
+        # Set Docker environment variable
+        os.environ["DOCKER_HOST"] = "unix:///var/run/docker.sock"
 
-    return result
+        # Reinitialize Docker client after setting environment variable
+        client = docker.from_env()
+
+        # Build the Docker image
+        print("Building Docker image...")
+        image, logs = client.images.build(path=".", tag="example_image")
+        for log in logs:
+            print(log.get("stream", "").strip())
+
+        # Run the Docker container
+        print("Running Docker container...")
+        container = client.containers.run(image="example_image", detach=True)
+
+        # Capture container logs
+        print("Capturing container logs...")
+        logs = container.logs(stdout=True, stderr=True, stream=True)
+        result = ""
+        for log in logs:
+            result += log.decode("utf-8")
+
+        container.stop()
+        container.remove()
+        return result
+    except docker.errors.APIError as e:
+        return f"API error: {e}"
+    except docker.errors.BuildError as e:
+        return f"Build error: {e}"
+    except docker.errors.ContainerError as e:
+        return f"Container error: {e}"
+    except Exception as e:
+        return f"Unexpected error: {e}"
+
 
 def execute_example_in_docker(example_code):
     try:
@@ -51,20 +79,46 @@ def execute_example_in_docker(example_code):
         return {"error": str(e)}
 
 
-run_prefect_code = {
-    "type": "function",
-    "function": {
-        "name": "execute_example_in_docker",
-        "description": "Write example code for Prefect, install the library, run the code in a Docker container, and return the result.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "example_code": {
-                    "type": "string",
-                    "description": "The example code to run using Prefect",
-                }
-            },
-            "required": ["example_code"],
-        },
-    },
-}
+# run_prefect_code = {
+#     "type": "function",
+#     "function": {
+#         "name": "run_prefect_code",
+#         "description": "Run Prefect code in a Docker container",
+#         "parameters": {
+#             "type": "object",
+#             "properties": {
+#                 "example_code": {
+#                     "type": "string",
+#                     "description": "The Prefect code to run",
+#                 },
+#             },
+#             "required": ["example_code"],
+#         },
+#     },
+#     "implementation": run_prefect_code,
+# }
+
+if __name__ == "__main__":
+    example_code = """
+    from prefect import flow, task
+
+    @task
+    def hello_task():
+        print("Task started")
+        result = "Hello, Prefect!"
+        print(f"Task result: {result}")
+        return result
+
+    @flow(log_prints=True)
+    def hello_flow():
+        result = hello_task()
+        print(f"Flow result: {result}")
+        print("Hello Flow Completing!")
+
+    hello_flow()
+    """
+    output = execute_example_in_docker(example_code)
+    print("Execution Result:")
+    print(output["result"])
+    print("Library Version:")
+    print(output["library_version"])
