@@ -21,7 +21,7 @@ def create_assistant(client):
             "You only answer questions after verifying the code works. Use the `run_prefect_code` tool to execute Prefect code."
             "You are an assistant specialized in Prefect. Reference Prefect documentation."
             "Always run the code in a Docker container until it runs without error. Use the `run_prefect_code` tool to execute Prefect code."
-            "Don't give an answer unless you are able to verify your answer works"
+            "Don't give an answer unless you are able to verify your answer works."
             "Always respond with the code example AND importantly the version of prefect that was used to run the code."
             "If the code fails, try up to 5 times with different versions. Stop after 5 tries."
             "If you cannot run the code, apologize and indicate you could not verify the answer."
@@ -42,26 +42,26 @@ def add_message_to_thread(client, thread_id, content):
     return message
 
 class EventHandler(AssistantEventHandler):
+    def __init__(self):
+        super().__init__()
+        self.function_call_arguments = ""
+
     @override
     def on_text_created(self, text) -> None:
-        print(f"\nassistant > ", end="", flush=True)
+        print(f"\nassistant > {text}")
 
     @override
     def on_text_delta(self, delta, snapshot):
         print(delta.value, end="", flush=True)
 
     def on_tool_call_created(self, tool_call):
-        print(f"\nassistant > {tool_call.type}\n", flush=True)
+        print(f"\nassistant > {tool_call.type}")
 
     def on_tool_call_delta(self, delta, snapshot):
-        if delta.type == "code_interpreter":
-            if delta.code_interpreter.input:
-                print(delta.code_interpreter.input, end="", flush=True)
-            if delta.code_interpreter.outputs:
-                print(f"\n\noutput >", flush=True)
-                for output in delta.code_interpreter.outputs:
-                    if output.type == "logs":
-                        print(f"\n{output.logs}", flush=True)
+        print(f"\nDelta Type: {delta.type}")
+        if delta.type == 'function' and delta.function.arguments:
+            self.function_call_arguments += delta.function.arguments
+            print(f"Accumulating arguments.")
 
 if __name__ == "__main__":
     # Create the assistant
@@ -78,10 +78,15 @@ if __name__ == "__main__":
     print("Message added to thread:", message)
 
     # Stream the response with run-specific instructions
+    event_handler = EventHandler()
     with client.beta.threads.runs.stream(
         thread_id=thread.id,
         assistant_id=assistant.id,  # Use the created assistant's ID
         instructions="Please address the user as Jane Doe. The user has a premium account.",
-        event_handler=EventHandler(),
+        event_handler=event_handler,
     ) as stream:
         stream.until_done()
+    print(f"\nComplete function call arguments: {event_handler.function_call_arguments}")
+
+    # Execute the captured function call arguments
+    run_prefect_code({"example_code": event_handler.function_call_arguments})

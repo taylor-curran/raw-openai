@@ -35,7 +35,9 @@ def run_in_docker(example_code):
         print("Building Docker image...")
         image, logs = client.images.build(path=".", tag="example_image")
         for log in logs:
-            print(log.get("stream", "").strip())
+            stream = log.get("stream")
+            if stream:
+                print(stream.strip())
 
         # Run the Docker container
         print("Running Docker container...")
@@ -44,9 +46,7 @@ def run_in_docker(example_code):
         # Capture container logs
         print("Capturing container logs...")
         logs = container.logs(stdout=True, stderr=True, stream=True)
-        result = ""
-        for log in logs:
-            result += log.decode("utf-8")
+        result = "".join(log.decode("utf-8") for log in logs)
 
         container.stop()
         container.remove()
