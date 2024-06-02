@@ -43,21 +43,29 @@ def run_in_docker(example_code):
         print("Running Docker container...")
         container = client.containers.run(image="example_image", detach=True)
 
+        # Wait for the container to finish
+        print("Waiting for container to finish...")
+        result = container.wait()
+        print(f"Container finished with status: {result['StatusCode']}")
+
         # Capture container logs
         print("Capturing container logs...")
-        logs = container.logs(stdout=True, stderr=True, stream=True)
-        result = "".join(log.decode("utf-8") for log in logs)
+        logs = container.logs(stdout=True, stderr=True).decode("utf-8")
+        print("Container logs captured successfully.")
 
-        container.stop()
         container.remove()
-        return result
+        return logs
     except docker.errors.APIError as e:
+        print(f"API error: {e}")
         return f"API error: {e}"
     except docker.errors.BuildError as e:
+        print(f"Build error: {e}")
         return f"Build error: {e}"
     except docker.errors.ContainerError as e:
+        print(f"Container error: {e}")
         return f"Container error: {e}"
     except Exception as e:
+        print(f"Unexpected error: {e}")
         return f"Unexpected error: {e}"
 
 def execute_example_in_docker(example_code):

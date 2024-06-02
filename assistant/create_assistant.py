@@ -58,10 +58,11 @@ class EventHandler(AssistantEventHandler):
         print(f"\nassistant > {tool_call.type}")
 
     def on_tool_call_delta(self, delta, snapshot):
-        print(f"\nDelta Type: {delta.type}")
-        if delta.type == 'function' and delta.function.arguments:
-            self.function_call_arguments += delta.function.arguments
-            print(f"Accumulating arguments.")
+        if delta.type == 'function':
+            if delta.function.arguments:
+                self.function_call_arguments += delta.function.arguments
+            if delta.function.output:
+                print(f"\n\noutput > {delta.function.output}", flush=True)
 
 if __name__ == "__main__":
     # Create the assistant
@@ -89,4 +90,8 @@ if __name__ == "__main__":
     print(f"\nComplete function call arguments: {event_handler.function_call_arguments}")
 
     # Execute the captured function call arguments
-    run_prefect_code({"example_code": event_handler.function_call_arguments})
+    result = run_prefect_code({"example_code": event_handler.function_call_arguments})
+    print("Execution Result:")
+    print(result["result"])
+    print("Library Version:")
+    print(result["library_version"])
