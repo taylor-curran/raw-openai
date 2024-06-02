@@ -1,6 +1,7 @@
 import docker
 import os
 
+
 def create_dockerfile():
     dockerfile_content = """
     FROM python:3.9-slim
@@ -15,6 +16,7 @@ def create_dockerfile():
     """
     with open("Dockerfile", "w") as f:
         f.write(dockerfile_content)
+
 
 def run_in_docker(example_code: str):
     # Create Dockerfile
@@ -78,6 +80,7 @@ def run_in_docker(example_code: str):
         print(f"Unexpected error: {e}")
         return f"Unexpected error: {e}"
 
+
 def execute_example_in_docker(example_code):
     try:
         # Run example code in Docker
@@ -93,26 +96,29 @@ def execute_example_in_docker(example_code):
     except Exception as e:
         return {"error": str(e)}
 
+
 def run_prefect_code(params):
     example_code = params.get("example_code")
     print("This is Params: ", params)
     print("This is example_code: ", example_code)
     if not example_code:
         return {"error": "No code provided"}
-    
+
     retries = 5
     for attempt in range(retries):
         result = execute_example_in_docker(example_code)
         if not result.get("error"):
             return result
         example_code = update_example_code(example_code, attempt + 1)
-    
+
     return {"error": "Failed to run the code successfully after 5 attempts"}
+
 
 def update_example_code(example_code, attempt):
     # Modify the example code based on the attempt number
     # This is a placeholder function; you'll need to implement the logic to modify the code.
     return example_code
+
 
 run_prefect_code_tool = {
     "type": "function",
@@ -128,8 +134,8 @@ run_prefect_code_tool = {
                 },
             },
             "required": ["example_code"],
-        }
-    }
+        },
+    },
 }
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 # Create an OpenAI client
 client = OpenAI(api_key=api_key)
 
+
 def create_assistant(client):
     assistant = client.beta.assistants.create(
         name="Prefect Assistant",
@@ -31,15 +32,18 @@ def create_assistant(client):
     )
     return assistant
 
+
 def create_thread(client):
     thread = client.beta.threads.create()
     return thread
+
 
 def add_message_to_thread(client, thread_id, content):
     message = client.beta.threads.messages.create(
         thread_id=thread_id, role="user", content=content
     )
     return message
+
 
 class EventHandler(AssistantEventHandler):
     def __init__(self):
@@ -58,11 +62,12 @@ class EventHandler(AssistantEventHandler):
         print(f"\nassistant > {tool_call.type}")
 
     def on_tool_call_delta(self, delta, snapshot):
-        if delta.type == 'function':
+        if delta.type == "function":
             if delta.function.arguments:
                 self.function_call_arguments += delta.function.arguments
             if delta.function.output:
                 print(f"\n\noutput > {delta.function.output}", flush=True)
+
 
 if __name__ == "__main__":
     # Create the assistant
@@ -87,7 +92,9 @@ if __name__ == "__main__":
         event_handler=event_handler,
     ) as stream:
         stream.until_done()
-    print(f"\nComplete function call arguments: {event_handler.function_call_arguments}")
+    print(
+        f"\nComplete function call arguments: {event_handler.function_call_arguments}"
+    )
 
     # Execute the captured function call arguments
     result = run_prefect_code({"example_code": event_handler.function_call_arguments})
