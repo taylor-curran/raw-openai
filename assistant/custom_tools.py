@@ -79,43 +79,28 @@ def execute_example_in_docker(example_code):
         return {"error": str(e)}
 
 
-# run_prefect_code = {
-#     "type": "function",
-#     "function": {
-#         "name": "run_prefect_code",
-#         "description": "Run Prefect code in a Docker container",
-#         "parameters": {
-#             "type": "object",
-#             "properties": {
-#                 "example_code": {
-#                     "type": "string",
-#                     "description": "The Prefect code to run",
-#                 },
-#             },
-#             "required": ["example_code"],
-#         },
-#     },
-#     "implementation": run_prefect_code,
-# }
+run_prefect_code = {
+# add tool here
+}
 
 if __name__ == "__main__":
     example_code = """
-    from prefect import flow, task
+from prefect import flow, task
 
-    @task
-    def hello_task():
-        print("Task started")
-        result = "Hello, Prefect!"
-        print(f"Task result: {result}")
-        return result
+@task
+def hello_task():
+    print("Task started")
+    result = "Hello, Prefect!"
+    print(f"Task result: {result}")
+    return result
 
-    @flow(log_prints=True)
-    def hello_flow():
-        result = hello_task()
-        print(f"Flow result: {result}")
-        print("Hello Flow Completing!")
+@flow(log_prints=True)
+def hello_flow():
+    result = hello_task()
+    print(f"Flow result: {result}")
+    print("Hello Flow Completing!")
 
-    hello_flow()
+hello_flow()
     """
     output = execute_example_in_docker(example_code)
     print("Execution Result:")

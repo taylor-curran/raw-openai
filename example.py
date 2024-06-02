@@ -1,5 +1,5 @@
-from prefect import flow, task
 
+from prefect import flow, task
 
 @task
 def hello_task():
@@ -8,12 +8,11 @@ def hello_task():
     print(f"Task result: {result}")
     return result
 
-
 @flow(log_prints=True)
 def hello_flow():
     result = hello_task()
     print(f"Flow result: {result}")
     print("Hello Flow Completing!")
 
-
 hello_flow()
+    
