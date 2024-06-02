@@ -16,13 +16,22 @@ def create_dockerfile():
     with open("Dockerfile", "w") as f:
         f.write(dockerfile_content)
 
-def run_in_docker(example_code: dict):
+def run_in_docker(example_code: str):
     # Create Dockerfile
-    create_dockerfile() 
+    create_dockerfile()
 
     # Write example code to a file
+    print("Writing the following code to example.py:")
+    print(example_code)
+
     with open("example.py", "w") as f:
-        f.write(example_code.get("example_code"))
+        f.write(example_code)
+
+    # Check if the file was written correctly
+    with open("example.py", "r") as f:
+        written_content = f.read()
+        print("Content of example.py:")
+        print(written_content)
 
     try:
         # Set Docker environment variable
@@ -52,6 +61,7 @@ def run_in_docker(example_code: dict):
         print("Capturing container logs...")
         logs = container.logs(stdout=True, stderr=True).decode("utf-8")
         print("Container logs captured successfully.")
+        print("Container logs:\n", logs)
 
         container.remove()
         return logs
@@ -78,13 +88,15 @@ def execute_example_in_docker(example_code):
         return {
             "example_code": example_code,
             "result": result,
-            "prefect_library_version": version_result,
+            "library_version": version_result,
         }
     except Exception as e:
         return {"error": str(e)}
 
 def run_prefect_code(params):
     example_code = params.get("example_code")
+    print("This is Params: ", params)
+    print("This is example_code: ", example_code)
     if not example_code:
         return {"error": "No code provided"}
     
@@ -141,6 +153,6 @@ hello_flow()
     """
     output = execute_example_in_docker(example_code)
     print("Execution Result:")
-    print(output["result"])
-    print("Library Version:")
-    print(output["library_version"])
+    print(output.get("result", "No result"))
+    print("Prefect Library Version:")
+    print(output.get("library_version", "No library version"))

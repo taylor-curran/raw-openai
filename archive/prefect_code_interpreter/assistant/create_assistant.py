@@ -92,6 +92,6 @@ if __name__ == "__main__":
     # Execute the captured function call arguments
     result = run_prefect_code({"example_code": event_handler.function_call_arguments})
     print("Execution Result:")
-    print(result["result"])
+    print(result)
     print("Library Version:")
-    print(result["library_version"])
+    print(result)
