@@ -1,3 +1,0 @@
-{
-  "example_code": "from prefect import task, Flow\nfrom prefect.engine.signals import FAIL\nfrom datetime import timedelta\n\n@task(max_retries=3, retry_delay=timedelta(seconds=10))\ndef example_task():\n    print(\"Attempting task execution\")\n    # Simulate a task failure\n    raise FAIL(\"Task failed, retrying...\")\n\nwith Flow(\"example-flow\") as flow:\n    example_task()\n\n# Running the flow\nflow.run()"
-}

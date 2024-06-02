@@ -5,7 +5,7 @@ def create_dockerfile():
     dockerfile_content = """
     FROM python:3.9-slim
 
-    RUN pip install prefect
+    RUN pip install -U prefect
 
     WORKDIR /usr/src/app
 
@@ -16,13 +16,13 @@ def create_dockerfile():
     with open("Dockerfile", "w") as f:
         f.write(dockerfile_content)
 
-def run_in_docker(example_code):
+def run_in_docker(example_code: dict):
     # Create Dockerfile
-    create_dockerfile()
+    create_dockerfile() 
 
     # Write example code to a file
     with open("example.py", "w") as f:
-        f.write(example_code)
+        f.write(example_code.get("example_code"))
 
     try:
         # Set Docker environment variable
@@ -78,7 +78,7 @@ def execute_example_in_docker(example_code):
         return {
             "example_code": example_code,
             "result": result,
-            "library_version": version_result,
+            "prefect_library_version": version_result,
         }
     except Exception as e:
         return {"error": str(e)}
