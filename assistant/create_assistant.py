@@ -69,7 +69,7 @@ if __name__ == "__main__":
     print("Thread created:", thread)
 
     # Add a message to the thread
-    content = "How do I specify the number of retries in a Prefect task? Does the task need to run in a Prefect flow?"
+    content = "How do I specify the number of retries in a Prefect task? Does the task need to run in a Prefect flow? Please run an example Prefect code for me."
     message = add_message_to_thread(client, thread.id, content)
     print("Message added to thread:", message)
 

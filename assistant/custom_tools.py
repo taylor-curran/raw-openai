@@ -83,17 +83,19 @@ def run_prefect_code(params):
 
 run_prefect_code_tool = {
     "type": "function",
-    "name": "run_prefect_code",
-    "description": "Run Prefect code in a Docker container",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "example_code": {
-                "type": "string",
-                "description": "The Prefect code to run",
+    "function": {
+        "name": "run_prefect_code",
+        "description": "Run Prefect code in a Docker container",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "example_code": {
+                    "type": "string",
+                    "description": "The Prefect code to run",
+                },
             },
-        },
-        "required": ["example_code"],
+            "required": ["example_code"],
+        }
     }
 }
 
