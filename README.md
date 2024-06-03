@@ -4,4 +4,5 @@ Notes:
 
 `brew services start redis`
 
-`docker-compose up -d`
+`docker run -it --rm --name redis-stack -p 6379:6379 redis/redis-stack:latest`
+

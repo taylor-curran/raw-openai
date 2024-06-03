@@ -10,6 +10,8 @@ import pandas as pd
 import redis
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.field import TextField, VectorField
+import subprocess # TODO remove
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -68,7 +70,7 @@ def check_redis_connection():
     """
     try:
         # Connect to Redis
-        redis_client = redis.Redis()
+        redis_client = redis.Redis(host='localhost', port=6379)
 
         # Try to ping the Redis server
         if redis_client.ping():
@@ -78,27 +80,19 @@ def check_redis_connection():
     except redis.exceptions.ConnectionError:
         raise Exception(
             "Could not connect to Redis server. Please check if the server is running and the connection settings are correct.\n"
-            "Make sure Redis is started using 'brew services start redis'."
+            "Make sure Redis is started using 'docker-compose up -d'."
         )
     return redis_client
 
 
 @task
 def create_redis_search_index(redis_client: redis.Redis):
-    """
-    Create a RediSearch index in Redis to store article metadata.
+    VECTOR_DIM = 1536
+    VECTOR_NUMBER = 60
+    INDEX_NAME = "news-embeddings-index"
+    PREFIX = "news-doc"
+    DISTANCE_METRIC = "COSINE"
 
-    Args:
-        redis_client (redis.Redis): Redis client.
-    """
-    # Constants
-    VECTOR_DIM = 1536  # Set an arbitrary dimension size for now # TODO - Update this value after we add the embeddings step
-    VECTOR_NUMBER = 60  # Initial number of vectors, adjust as needed
-    INDEX_NAME = "news-embeddings-index"  # Name of the search index
-    PREFIX = "news-doc"  # Prefix for the document keys
-    DISTANCE_METRIC = "COSINE"  # Distance metric for the vectors (e.g., COSINE, IP, L2)
-
-    # Define RediSearch fields for each of the columns in the dataset
     title = TextField(name="title")
     url = TextField(name="url")
     text = TextField(name="text")
@@ -124,17 +118,23 @@ def create_redis_search_index(redis_client: redis.Redis):
     )
     fields = [title, url, text, title_embedding, content_embedding]
 
-    # Check if index exists
     try:
         redis_client.ft(INDEX_NAME).info()
         print("Index already exists")
-    except:
-        # Create RediSearch Index
-        redis_client.ft(INDEX_NAME).create_index(
-            fields=fields,
-            definition=IndexDefinition(prefix=[PREFIX], index_type=IndexType.HASH),
-        )
-        print("Index created successfully")
+    except redis.exceptions.ResponseError as e:
+        if "unknown command 'FT.INFO'" in str(e):
+            raise Exception("RediSearch commands are not recognized by the Redis server. Ensure RediSearch is properly installed and loaded.")
+        elif "Unknown Index name" in str(e):
+            try:
+                redis_client.ft(INDEX_NAME).create_index(
+                    fields=fields,
+                    definition=IndexDefinition(prefix=[PREFIX], index_type=IndexType.HASH),
+                )
+                print("Index created successfully")
+            except redis.exceptions.ResponseError as e:
+                raise Exception(f"Failed to create index: {str(e)}")
+        else:
+            raise
 
 
 @flow(name="News Embedding Pipeline", log_prints=True)
@@ -146,14 +146,13 @@ async def news_embedding_pipeline():
     load_dotenv()
 
     # Fetch financial news articles using NewsAPI
-    news_articles = fetch_news_articles.submit(news_api_key, "technology", 60)
+    news_articles = fetch_news_articles(news_api_key, "technology", 60)
 
     # Check Redis connection
-    redis_client = check_redis_connection.submit()
+    redis_client = check_redis_connection()
 
-    # Nate - can I pass the redis client? I think not
     # Create Redis search index
-    create_redis_search_index.submit(redis_client)
+    create_redis_search_index(redis_client)
 
 
 if __name__ == "__main__":
