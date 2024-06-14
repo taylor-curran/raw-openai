@@ -8,13 +8,14 @@ from newsapi import NewsApiClient
 import asyncio
 import pandas as pd
 import chromadb
+import chromadb.utils.embedding_functions as embedding_functions
+
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Get the API key from environment variables
 news_api_key = os.getenv("NEWS_API_KEY")
-openai_api_key = os.getenv("OPENAI_API_KEY")
 
 
 @task(
@@ -58,7 +59,7 @@ def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataF
 
 @task(cache_expiration=timedelta(days=1))
 def create_chroma_collection():
-    chroma_client = chromadb.Client()  # Correct instantiation
+    chroma_client = chromadb.Client()
     collection_name = "news_embeddings"
 
     try:
@@ -78,6 +79,42 @@ def create_chroma_collection():
 
     return collection_name
 
+@task
+def store_embeddings_in_chroma(df: pd.DataFrame, collection_name: str):
+    chroma_client = chromadb.Client()
+    collection = chroma_client.get_collection(collection_name)
+    
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai_api_key, model_name="text-embedding-ada-002")
+
+    ids = []
+    metadata = []
+    title_vectors = []
+    content_vectors = []
+
+    for _, row in df.iterrows():
+        doc_id = row['url']
+        ids.append(doc_id)
+        
+        title = row['title']
+        content = row['content']
+
+        title_embedding = openai_ef.embed_with_retries([title])[0]
+        content_embedding = openai_ef.embed_with_retries([content])[0]
+
+        metadata.append({
+            "title": title,
+            "url": row['url'],
+            "content": content
+        })
+        title_vectors.append(title_embedding)
+        content_vectors.append(content_embedding)
+
+    collection.upsert(
+        ids=ids,
+        embeddings=[title_vectors, content_vectors],
+        metadatas=metadata
+    )
 
 @flow(name="News Embedding Pipeline", log_prints=True)
 async def news_embedding_pipeline():
@@ -86,11 +123,13 @@ async def news_embedding_pipeline():
     """
     # Load environment variables from .env file
     load_dotenv()
-
+    
     # Fetch financial news articles using NewsAPI
     news_articles = fetch_news_articles.submit(news_api_key, "technology", 60)
 
-    create_chroma_collection.submit()
+    collection_name = create_chroma_collection.submit()
+
+    store_embeddings_in_chroma.submit(news_articles, collection_name)
 
 
 
