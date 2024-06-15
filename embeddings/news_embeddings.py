@@ -1,15 +1,10 @@
-from datetime import timedelta
-from typing import List, Dict
-from prefect import flow, task
-from prefect.tasks import task_input_hash
-from dotenv import load_dotenv
 import os
-from newsapi import NewsApiClient
 import pandas as pd
+from dotenv import load_dotenv
+from newsapi import NewsApiClient
 import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 import sys
-import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,10 +14,6 @@ news_api_key = os.getenv("NEWS_API_KEY")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 
-@task(
-    cache_key_fn=task_input_hash,
-    cache_expiration=timedelta(days=1),
-)
 def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataFrame:
     """
     Fetch news articles using the NewsAPI client.
@@ -57,8 +48,7 @@ def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataF
     return df
 
 
-@task(cache_expiration=timedelta(days=1))
-def create_chroma_collection():
+def create_chroma_collection() -> str:
     """
     Create a ChromaDB collection if it doesn't already exist.
 
@@ -87,7 +77,6 @@ def create_chroma_collection():
     return collection_name
 
 
-@task
 def store_embeddings_in_chroma(
     df: pd.DataFrame, collection_name: str, openai_api_key: str
 ):
@@ -133,20 +122,19 @@ def store_embeddings_in_chroma(
     print(f"Upserted {len(df)} documents to the collection '{collection_name}'.")
 
 
-@flow(name="News Embedding Pipeline", log_prints=True)
-async def news_embedding_pipeline():
+def news_embedding_pipeline():
     """
-    Main flow to orchestrate fetching news articles, creating ChromaDB collection,
+    Main function to orchestrate fetching news articles, creating ChromaDB collection,
     and storing embeddings in the collection.
     """
-    news_articles = fetch_news_articles.submit(news_api_key, "technology", 60)
-    collection_name = create_chroma_collection.submit()
-    store_embeddings_in_chroma.submit(news_articles, collection_name, openai_api_key)
+    news_articles = fetch_news_articles(news_api_key, "technology", 60)
+    collection_name = create_chroma_collection()
+    store_embeddings_in_chroma(news_articles, collection_name, openai_api_key)
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(news_embedding_pipeline())
+        news_embedding_pipeline()
     except Exception as e:
         print(f"An error occurred: {e}")
         sys.exit(1)
