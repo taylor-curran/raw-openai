@@ -11,9 +11,6 @@ import chromadb.utils.embedding_functions as embedding_functions
 import sys
 import asyncio
 
-# Increase recursion limit to help diagnose the issue
-sys.setrecursionlimit(2000)
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -27,6 +24,17 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
     cache_expiration=timedelta(days=1),
 )
 def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataFrame:
+    """
+    Fetch news articles using the NewsAPI client.
+
+    Args:
+        api_key (str): API key for NewsAPI.
+        query (str): Query string for searching articles.
+        num_articles (int): Number of articles to fetch.
+
+    Returns:
+        pd.DataFrame: DataFrame containing fetched articles.
+    """
     if not api_key:
         raise ValueError("NEWS_API_KEY environment variable is not set")
 
@@ -51,6 +59,12 @@ def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataF
 
 @task(cache_expiration=timedelta(days=1))
 def create_chroma_collection():
+    """
+    Create a ChromaDB collection if it doesn't already exist.
+
+    Returns:
+        str: Name of the created or existing collection.
+    """
     chroma_client = chromadb.Client()
     collection_name = "news_embeddings"
 
@@ -58,68 +72,73 @@ def create_chroma_collection():
         chroma_client.get_collection(collection_name)
         print(f"Collection '{collection_name}' already exists.")
     except ValueError:
-        chroma_client.create_collection(collection_name, {
-            "title": "str",
-            "url": "str",
-            "content": "str",
-            "title_vector": "vector(1536, cosine)",
-            "content_vector": "vector(1536, cosine)"
-        })
+        chroma_client.create_collection(
+            collection_name,
+            {
+                "title": "str",
+                "url": "str",
+                "content": "str",
+                "title_vector": "vector(1536, cosine)",
+                "content_vector": "vector(1536, cosine)",
+            },
+        )
         print(f"Collection '{collection_name}' created successfully.")
 
     return collection_name
 
 
 @task
-def store_embeddings_in_chroma(df: pd.DataFrame, collection_name: str, openai_api_key: str):
+def store_embeddings_in_chroma(
+    df: pd.DataFrame, collection_name: str, openai_api_key: str
+):
+    """
+    Store embeddings of news article titles and content in a ChromaDB collection.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing news articles.
+        collection_name (str): Name of the ChromaDB collection.
+        openai_api_key (str): API key for OpenAI to generate embeddings.
+    """
     chroma_client = chromadb.Client()
     collection = chroma_client.get_collection(collection_name)
-    
-    openai_ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai_api_key, model_name="text-embedding-ada-002")
 
-    df = df.drop_duplicates(subset=['url'])
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(
+        api_key=openai_api_key, model_name="text-embedding-ada-002"
+    )
 
-    ids = []
-    metadata = []
-    embeddings = []
+    df = df.drop_duplicates(subset=["url"])
 
     for _, row in df.iterrows():
-        doc_id = row['url']
-        ids.append(doc_id)
-        
-        title = row['title']
-        content = row['content']
+        doc_id = row["url"]
+        title = row["title"]
+        content = row["content"]
 
         title_embedding = openai_ef.embed_with_retries([title])[0]
         content_embedding = openai_ef.embed_with_retries([content])[0]
 
-        metadata.append({
-            "title": title,
-            "url": row['url'],
-            "content": content
-        })
-        embeddings.append(title_embedding)
-        embeddings.append(content_embedding)
+        metadata = {"title": title, "url": row["url"], "content": content}
 
-    # Check dimensions and log before upsert
-    print(f"IDs: {ids}")
-    print(f"Metadata: {metadata}")
-    print(f"Embeddings shape: {len(embeddings)}")
-
-    # Ensure embeddings are correctly shaped
-    assert all(len(vec) == 1536 for vec in embeddings), "Embeddings are not of length 1536"
-
-    # Format the data for upsert
-    for i in range(len(ids)):
+        # Upsert title embedding
         collection.upsert(
-            ids=[ids[i]],
-            embeddings=[embeddings[i*2], embeddings[i*2+1]],
-            metadatas=[metadata[i]]
+            ids=[f"{doc_id}_title"], embeddings=[title_embedding], metadatas=[metadata]
         )
+
+        # Upsert content embedding
+        collection.upsert(
+            ids=[f"{doc_id}_content"],
+            embeddings=[content_embedding],
+            metadatas=[metadata],
+        )
+
+    print(f"Upserted {len(df)} documents to the collection '{collection_name}'.")
 
 
 @flow(name="News Embedding Pipeline", log_prints=True)
 async def news_embedding_pipeline():
+    """
+    Main flow to orchestrate fetching news articles, creating ChromaDB collection,
+    and storing embeddings in the collection.
+    """
     news_articles = fetch_news_articles.submit(news_api_key, "technology", 60)
     collection_name = create_chroma_collection.submit()
     store_embeddings_in_chroma.submit(news_articles, collection_name, openai_api_key)
