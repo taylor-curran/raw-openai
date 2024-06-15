@@ -87,6 +87,9 @@ def store_embeddings_in_chroma(df: pd.DataFrame, collection_name: str):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     openai_ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai_api_key, model_name="text-embedding-ada-002")
 
+    # Remove duplicates from the DataFrame based on the URL
+    df = df.drop_duplicates(subset=['url'])  # Added this line to remove duplicates
+
     ids = []
     metadata = []
     title_vectors = []
