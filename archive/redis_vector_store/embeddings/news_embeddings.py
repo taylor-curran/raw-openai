@@ -10,7 +10,7 @@ import pandas as pd
 import redis
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.field import TextField, VectorField
-import subprocess # TODO remove
+import subprocess  # TODO remove
 import json
 
 # Load environment variables from .env file
@@ -70,7 +70,7 @@ def check_redis_connection():
     """
     try:
         # Connect to Redis
-        redis_client = redis.Redis(host='localhost', port=6379)
+        redis_client = redis.Redis(host="localhost", port=6379)
 
         # Try to ping the Redis server
         if redis_client.ping():
@@ -123,12 +123,16 @@ def create_redis_search_index(redis_client: redis.Redis):
         print("Index already exists")
     except redis.exceptions.ResponseError as e:
         if "unknown command 'FT.INFO'" in str(e):
-            raise Exception("RediSearch commands are not recognized by the Redis server. Ensure RediSearch is properly installed and loaded.")
+            raise Exception(
+                "RediSearch commands are not recognized by the Redis server. Ensure RediSearch is properly installed and loaded."
+            )
         elif "Unknown Index name" in str(e):
             try:
                 redis_client.ft(INDEX_NAME).create_index(
                     fields=fields,
-                    definition=IndexDefinition(prefix=[PREFIX], index_type=IndexType.HASH),
+                    definition=IndexDefinition(
+                        prefix=[PREFIX], index_type=IndexType.HASH
+                    ),
                 )
                 print("Index created successfully")
             except redis.exceptions.ResponseError as e:

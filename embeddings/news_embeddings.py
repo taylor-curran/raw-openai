@@ -5,10 +5,14 @@ from prefect.tasks import task_input_hash
 from dotenv import load_dotenv
 import os
 from newsapi import NewsApiClient
-import asyncio
 import pandas as pd
 import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
+import sys
+import asyncio
+
+# Increase recursion limit to help diagnose the issue
+sys.setrecursionlimit(2000)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -44,6 +48,7 @@ def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataF
     df = pd.DataFrame(data)
     return df
 
+
 @task(cache_expiration=timedelta(days=1))
 def create_chroma_collection():
     chroma_client = chromadb.Client()
@@ -53,25 +58,33 @@ def create_chroma_collection():
         chroma_client.get_collection(collection_name)
         print(f"Collection '{collection_name}' already exists.")
     except ValueError:
-        chroma_client.create_collection(collection_name, {
-            "title": "str",
-            "url": "str",
-            "content": "str",
-            "title_vector": "vector(1536, cosine)",
-            "content_vector": "vector(1536, cosine)"
-        })
+        chroma_client.create_collection(
+            collection_name,
+            {
+                "title": "str",
+                "url": "str",
+                "content": "str",
+                "title_vector": "vector(1536, cosine)",
+                "content_vector": "vector(1536, cosine)",
+            },
+        )
         print(f"Collection '{collection_name}' created successfully.")
 
     return collection_name
 
+
 @task
-def store_embeddings_in_chroma(df: pd.DataFrame, collection_name: str, openai_api_key: str):
+def store_embeddings_in_chroma(
+    df: pd.DataFrame, collection_name: str, openai_api_key: str
+):
     chroma_client = chromadb.Client()
     collection = chroma_client.get_collection(collection_name)
-    
-    openai_ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai_api_key, model_name="text-embedding-ada-002")
 
-    df = df.drop_duplicates(subset=['url'])
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(
+        api_key=openai_api_key, model_name="text-embedding-ada-002"
+    )
+
+    df = df.drop_duplicates(subset=["url"])
 
     ids = []
     metadata = []
@@ -79,28 +92,23 @@ def store_embeddings_in_chroma(df: pd.DataFrame, collection_name: str, openai_ap
     content_vectors = []
 
     for _, row in df.iterrows():
-        doc_id = row['url']
+        doc_id = row["url"]
         ids.append(doc_id)
-        
-        title = row['title']
-        content = row['content']
+
+        title = row["title"]
+        content = row["content"]
 
         title_embedding = openai_ef.embed_with_retries([title])[0]
         content_embedding = openai_ef.embed_with_retries([content])[0]
 
-        metadata.append({
-            "title": title,
-            "url": row['url'],
-            "content": content
-        })
+        metadata.append({"title": title, "url": row["url"], "content": content})
         title_vectors.append(title_embedding)
         content_vectors.append(content_embedding)
 
     collection.upsert(
-        ids=ids,
-        embeddings=[title_vectors, content_vectors],
-        metadatas=metadata
+        ids=ids, embeddings=[title_vectors, content_vectors], metadatas=metadata
     )
+
 
 @flow(name="News Embedding Pipeline", log_prints=True)
 async def news_embedding_pipeline():
@@ -108,5 +116,10 @@ async def news_embedding_pipeline():
     collection_name = create_chroma_collection.submit()
     store_embeddings_in_chroma.submit(news_articles, collection_name, openai_api_key)
 
+
 if __name__ == "__main__":
-    asyncio.run(news_embedding_pipeline())
+    try:
+        asyncio.run(news_embedding_pipeline())
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        sys.exit(1)
