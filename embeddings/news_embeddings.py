@@ -58,56 +58,64 @@ def create_chroma_collection():
         chroma_client.get_collection(collection_name)
         print(f"Collection '{collection_name}' already exists.")
     except ValueError:
-        chroma_client.create_collection(
-            collection_name,
-            {
-                "title": "str",
-                "url": "str",
-                "content": "str",
-                "title_vector": "vector(1536, cosine)",
-                "content_vector": "vector(1536, cosine)",
-            },
-        )
+        chroma_client.create_collection(collection_name, {
+            "title": "str",
+            "url": "str",
+            "content": "str",
+            "title_vector": "vector(1536, cosine)",
+            "content_vector": "vector(1536, cosine)"
+        })
         print(f"Collection '{collection_name}' created successfully.")
 
     return collection_name
 
 
 @task
-def store_embeddings_in_chroma(
-    df: pd.DataFrame, collection_name: str, openai_api_key: str
-):
+def store_embeddings_in_chroma(df: pd.DataFrame, collection_name: str, openai_api_key: str):
     chroma_client = chromadb.Client()
     collection = chroma_client.get_collection(collection_name)
+    
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai_api_key, model_name="text-embedding-ada-002")
 
-    openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-        api_key=openai_api_key, model_name="text-embedding-ada-002"
-    )
-
-    df = df.drop_duplicates(subset=["url"])
+    df = df.drop_duplicates(subset=['url'])
 
     ids = []
     metadata = []
-    title_vectors = []
-    content_vectors = []
+    embeddings = []
 
     for _, row in df.iterrows():
-        doc_id = row["url"]
+        doc_id = row['url']
         ids.append(doc_id)
-
-        title = row["title"]
-        content = row["content"]
+        
+        title = row['title']
+        content = row['content']
 
         title_embedding = openai_ef.embed_with_retries([title])[0]
         content_embedding = openai_ef.embed_with_retries([content])[0]
 
-        metadata.append({"title": title, "url": row["url"], "content": content})
-        title_vectors.append(title_embedding)
-        content_vectors.append(content_embedding)
+        metadata.append({
+            "title": title,
+            "url": row['url'],
+            "content": content
+        })
+        embeddings.append(title_embedding)
+        embeddings.append(content_embedding)
 
-    collection.upsert(
-        ids=ids, embeddings=[title_vectors, content_vectors], metadatas=metadata
-    )
+    # Check dimensions and log before upsert
+    print(f"IDs: {ids}")
+    print(f"Metadata: {metadata}")
+    print(f"Embeddings shape: {len(embeddings)}")
+
+    # Ensure embeddings are correctly shaped
+    assert all(len(vec) == 1536 for vec in embeddings), "Embeddings are not of length 1536"
+
+    # Format the data for upsert
+    for i in range(len(ids)):
+        collection.upsert(
+            ids=[ids[i]],
+            embeddings=[embeddings[i*2], embeddings[i*2+1]],
+            metadatas=[metadata[i]]
+        )
 
 
 @flow(name="News Embedding Pipeline", log_prints=True)
