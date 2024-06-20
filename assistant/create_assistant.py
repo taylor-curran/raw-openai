@@ -1,7 +1,7 @@
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
-from openai import AssistantEventHandler
+from tools import TechNewsDBTool  # Import the custom tool
 
 # Load environment variables from .env file
 load_dotenv()
@@ -12,8 +12,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 # Create an OpenAI client
 client = OpenAI(api_key=api_key)
 
-# TODO: None of this has been implemented yet
-
+# Create the assistant with the custom tool
 assistant = client.beta.assistants.create(
     name="Portfolio Manager Analyst Bot",
     instructions="""
@@ -24,9 +23,12 @@ assistant = client.beta.assistants.create(
     - Compiling detailed reports on companies and providing investment recommendations
     """,
     tools=[
-        {"type": "code_interpreter"},
         {"type": "web_browsing"},
-        {"type": "document_summarizer"},
+        TechNewsDBTool(),  # Include the custom tool
     ],
     model="gpt-3.5-turbo",
 )
+
+# Example usage of the assistant with the custom tool
+query_result = assistant.tools["tech_news_db_tool"].execute(query_texts=["Latest trends in AI investment"], n_results=5)
+print(query_result)

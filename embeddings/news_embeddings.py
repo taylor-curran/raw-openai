@@ -102,7 +102,7 @@ def store_embeddings_in_chroma(
         title = row["title"]
         content = row["content"]
 
-        title_embedding = openai_ef.embed_with_retries([title])[0]
+        title_embedding = openai_ef.embed_with_retries([title])[0] # TODO take this out of the loop to reduce API calls
         content_embedding = openai_ef.embed_with_retries([content])[0]
 
         metadata = {"title": title, "url": row["url"], "content": content}
@@ -115,7 +115,7 @@ def store_embeddings_in_chroma(
         # Upsert content embedding
         collection.upsert(
             ids=[f"{doc_id}_content"],
-            embeddings=[content_embedding],
+            embeddings=[content_embedding], # TODO: take this out of the loop to reduce API calls
             metadatas=[metadata],
         )
 
@@ -138,3 +138,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An error occurred: {e}")
         sys.exit(1)
+
+# TODO: Test query
