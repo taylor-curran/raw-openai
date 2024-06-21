@@ -58,7 +58,7 @@ def store_embeddings_in_chroma(
         df (pd.DataFrame): DataFrame containing news articles.
         openai_api_key (str): API key for OpenAI to generate embeddings.
     """
-    chroma_client = chromadb.PersistentClient(path="~/Documents/tay/raw-openai/embeddings")
+    chroma_client = chromadb.PersistentClient(path="./chroma")
     openai_ef = embedding_functions.OpenAIEmbeddingFunction(
         api_key=openai_api_key, model_name="text-embedding-ada-002"
     )
