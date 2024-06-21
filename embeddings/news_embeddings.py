@@ -18,6 +18,7 @@ NUM_ARTICLES = 60  # Number of articles to fetch
 CHROMA_DB_PATH = "./chroma_db"  # Path to store ChromaDB embeddings
 EMBEDDING_MODEL_NAME = "text-embedding-ada-002"  # Model used for generating embeddings
 
+
 def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataFrame:
     """
     Fetch news articles using the NewsAPI client.
@@ -35,7 +36,7 @@ def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataF
 
     # Initialize the NewsAPI client
     newsapi = NewsApiClient(api_key=api_key)
-    
+
     # Fetch articles matching the query
     articles = newsapi.get_everything(q=query, language="en", page_size=num_articles)
 
@@ -54,6 +55,7 @@ def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataF
     ]
     return pd.DataFrame(data)
 
+
 def store_embeddings_in_chroma(df: pd.DataFrame, openai_api_key: str):
     """
     Store embeddings of news article titles and content in a ChromaDB collection.
@@ -64,7 +66,7 @@ def store_embeddings_in_chroma(df: pd.DataFrame, openai_api_key: str):
     """
     # Initialize ChromaDB client for storing embeddings
     chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-    
+
     # Define the embedding function using OpenAI
     openai_ef = embedding_functions.OpenAIEmbeddingFunction(
         api_key=openai_api_key, model_name=EMBEDDING_MODEL_NAME
@@ -79,22 +81,21 @@ def store_embeddings_in_chroma(df: pd.DataFrame, openai_api_key: str):
     df = df.drop_duplicates(subset=["url"])
 
     # Prepare the data for embedding
-    documents = df['content'].tolist()  # List of article contents
-    metadata = [{'title': title, 'url': url} for title, url in zip(df['title'], df['url'])]  # Metadata
+    documents = df["content"].tolist()  # List of article contents
+    metadata = [
+        {"title": title, "url": url} for title, url in zip(df["title"], df["url"])
+    ]  # Metadata
     ids = [f"id{i}" for i in range(len(df))]  # Unique IDs for each document
 
     # Add data to the collection
-    collection.add(
-        documents=documents,
-        metadatas=metadata,
-        ids=ids
-    )
+    collection.add(documents=documents, metadatas=metadata, ids=ids)
 
     # Print a peek and count for verification
     print("------------------- peek -------------------")
     print(collection.peek(1))  # Show a sample of one document
     print("------------------- count -------------------")
     print(collection.count())  # Show the total count of documents in the collection
+
 
 def news_embedding_pipeline():
     """
@@ -103,9 +104,10 @@ def news_embedding_pipeline():
     """
     # Fetch news articles from NewsAPI
     news_articles = fetch_news_articles(NEWS_API_KEY, QUERY_STRING, NUM_ARTICLES)
-    
+
     # Store the article embeddings in ChromaDB
     store_embeddings_in_chroma(news_articles, OPENAI_API_KEY)
+
 
 # Entry point of the script
 if __name__ == "__main__":
