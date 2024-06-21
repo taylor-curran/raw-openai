@@ -69,12 +69,22 @@ def store_embeddings_in_chroma(
 
     df = df.drop_duplicates(subset=["url"])
 
-#     collection.add(
-#     documents=["lorem ipsum...", "doc2", "doc3", ...],
-#     metadatas=[{"chapter": "3", "verse": "16"}, {"chapter": "3", "verse": "5"}, {"chapter": "29", "verse": "11"}, ...],
-#     ids=["id1", "id2", "id3", ...]
-# )
+    # Prepare the data
+    documents = df['content'].tolist()
+    metadata = [{'title': title, 'url': url} for title, url in zip(df['title'], df['url'])]
+    ids = [f"id{i}" for i in range(len(df))]
 
+    # Add data to the collection
+    collection.add(
+        documents=documents,
+        metadatas=metadata,
+        ids=ids
+    )
+
+    print("------------------- peek -------------------")
+    print(collection.peek(1))
+    print("------------------- count -------------------")
+    print(collection.count())
 
 
 def news_embedding_pipeline():
@@ -87,9 +97,6 @@ def news_embedding_pipeline():
 
 
 if __name__ == "__main__":
-    try:
-        news_embedding_pipeline()
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        sys.exit(1)
+    news_embedding_pipeline()
+
 
