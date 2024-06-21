@@ -30,5 +30,7 @@ assistant = client.beta.assistants.create(
 )
 
 # Example usage of the assistant with the custom tool
-query_result = assistant.tools["tech_news_db_tool"].execute(query_texts=["Latest trends in AI investment"], n_results=5)
+query_result = assistant.tools["tech_news_db_tool"].execute(
+    query_texts=["Latest trends in AI investment"], n_results=5
+)
 print(query_result)

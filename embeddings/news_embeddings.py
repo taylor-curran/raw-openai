@@ -48,78 +48,33 @@ def fetch_news_articles(api_key: str, query: str, num_articles: int) -> pd.DataF
     return df
 
 
-def create_chroma_collection() -> str:
-    """
-    Create a ChromaDB collection if it doesn't already exist.
-
-    Returns:
-        str: Name of the created or existing collection.
-    """
-    chroma_client = chromadb.Client()
-    collection_name = "news_embeddings"
-
-    try:
-        chroma_client.get_collection(collection_name)
-        print(f"Collection '{collection_name}' already exists.")
-    except ValueError:
-        chroma_client.create_collection(
-            collection_name,
-            {
-                "title": "str",
-                "url": "str",
-                "content": "str",
-                "title_vector": "vector(1536, cosine)",
-                "content_vector": "vector(1536, cosine)",
-            },
-        )
-        print(f"Collection '{collection_name}' created successfully.")
-
-    return collection_name
-
-
 def store_embeddings_in_chroma(
-    df: pd.DataFrame, collection_name: str, openai_api_key: str
+    df: pd.DataFrame, openai_api_key: str
 ):
     """
     Store embeddings of news article titles and content in a ChromaDB collection.
 
     Args:
         df (pd.DataFrame): DataFrame containing news articles.
-        collection_name (str): Name of the ChromaDB collection.
         openai_api_key (str): API key for OpenAI to generate embeddings.
     """
-    chroma_client = chromadb.Client()
-    collection = chroma_client.get_collection(collection_name)
-
+    chroma_client = chromadb.PersistentClient(path="~/Documents/tay/raw-openai/embeddings")
     openai_ef = embedding_functions.OpenAIEmbeddingFunction(
         api_key=openai_api_key, model_name="text-embedding-ada-002"
     )
 
+    collection = chroma_client.get_or_create_collection(
+            "news_articles", embedding_function=openai_ef
+        )
+
     df = df.drop_duplicates(subset=["url"])
 
-    for _, row in df.iterrows():
-        doc_id = row["url"]
-        title = row["title"]
-        content = row["content"]
+#     collection.add(
+#     documents=["lorem ipsum...", "doc2", "doc3", ...],
+#     metadatas=[{"chapter": "3", "verse": "16"}, {"chapter": "3", "verse": "5"}, {"chapter": "29", "verse": "11"}, ...],
+#     ids=["id1", "id2", "id3", ...]
+# )
 
-        title_embedding = openai_ef.embed_with_retries([title])[0] # TODO take this out of the loop to reduce API calls
-        content_embedding = openai_ef.embed_with_retries([content])[0]
-
-        metadata = {"title": title, "url": row["url"], "content": content}
-
-        # Upsert title embedding
-        collection.upsert(
-            ids=[f"{doc_id}_title"], embeddings=[title_embedding], metadatas=[metadata]
-        )
-
-        # Upsert content embedding
-        collection.upsert(
-            ids=[f"{doc_id}_content"],
-            embeddings=[content_embedding], # TODO: take this out of the loop to reduce API calls
-            metadatas=[metadata],
-        )
-
-    print(f"Upserted {len(df)} documents to the collection '{collection_name}'.")
 
 
 def news_embedding_pipeline():
@@ -128,8 +83,7 @@ def news_embedding_pipeline():
     and storing embeddings in the collection.
     """
     news_articles = fetch_news_articles(news_api_key, "technology", 60)
-    collection_name = create_chroma_collection()
-    store_embeddings_in_chroma(news_articles, collection_name, openai_api_key)
+    store_embeddings_in_chroma(news_articles, openai_api_key)
 
 
 if __name__ == "__main__":
@@ -139,4 +93,3 @@ if __name__ == "__main__":
         print(f"An error occurred: {e}")
         sys.exit(1)
 
-# TODO: Test query
