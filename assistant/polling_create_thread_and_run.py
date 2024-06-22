@@ -19,27 +19,25 @@ client = OpenAI(api_key=api_key)
 thread = client.beta.threads.create()
 
 message = client.beta.threads.messages.create(
-  thread_id=thread.id,
-  role="user",
-  content="I need to know if Apple's stock price will go up tomorrow."
+    thread_id=thread.id,
+    role="user",
+    content="I need to know if Apple's stock price will go up tomorrow.",
 )
 
 message = client.beta.threads.messages.create(
-  thread_id=thread.id,
-  role="user",
-  content="""Can you look up the latest news that is relevant to Apple and let me know if this information will impact the stock price for better or worse?"""
+    thread_id=thread.id,
+    role="user",
+    content="""Can you look up the latest news that is relevant to Apple and let me know if this information will impact the stock price for better or worse?""",
 )
 
 run = client.beta.threads.runs.create_and_poll(
-  thread_id=thread.id,
-  assistant_id=analyst_assistant.id,
-  instructions="Please address the user as Jane Doe."
+    thread_id=thread.id,
+    assistant_id=analyst_assistant.id,
+    instructions="Please address the user as Jane Doe.",
 )
 
-if run.status == 'completed': 
-  messages = client.beta.threads.messages.list(
-    thread_id=thread.id
-  )
-  print(messages)
+if run.status == "completed":
+    messages = client.beta.threads.messages.list(thread_id=thread.id)
+    print(messages)
 else:
-  print(run.status)
+    print(run.status)
