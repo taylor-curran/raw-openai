@@ -3,8 +3,8 @@ import chromadb.utils.embedding_functions as embedding_functions
 import os
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-EMBEDDING_MODEL_NAME = "text-embedding-ada-002" 
-CHROMA_DB_PATH = "./chroma_db" 
+EMBEDDING_MODEL_NAME = "text-embedding-ada-002"
+CHROMA_DB_PATH = "./chroma_db"
 
 chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
@@ -15,11 +15,13 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
 
 
 collection = chroma_client.get_or_create_collection(
-        "news_articles", embedding_function=openai_ef
-    )
+    "news_articles", embedding_function=openai_ef
+)
 
 results = collection.query(
-    query_texts=["Show me articles about smartphones"], # Chroma will embed this for you
-    n_results=2 # how many results to return
+    query_texts=[
+        "Show me articles about smartphones"
+    ],  # Chroma will embed this for you
+    n_results=2,  # how many results to return
 )
 print(results)
