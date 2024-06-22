@@ -9,6 +9,7 @@ from prefect import task, flow
 
 @task
 def load_and_get_client():
+    raise NotImplementedError("This task is not implemented yet.")
     """Load environment variables and create an OpenAI client."""
     load_dotenv()
     api_key = os.getenv("OPENAI_API_KEY")
@@ -63,12 +64,11 @@ def run_assistant_with_event_handler(client, thread_id):
     ) as stream:
         stream.until_done()
 
-@flow(task_runner=ThreadPoolTaskRunner(max_workers=3))
+@flow()
 def main():
-    client = load_and_get_client.submit()
-    thread_id = create_thread_with_messages.submit(client)
-    run = run_assistant_with_event_handler.submit(client, thread_id)
-    run.wait()
+    client = load_and_get_client()
+    thread_id = create_thread_with_messages(client)
+    run = run_assistant_with_event_handler(client, thread_id)
 
 if __name__ == "__main__":
     main()
