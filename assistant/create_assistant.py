@@ -1,7 +1,7 @@
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
-from tools import TechNewsDBTool  # Import the custom tool
+from tools import query_tech_news
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,7 +21,31 @@ analyst_assistant = client.beta.assistants.create(
     - Staying updated with the latest market trends and news articles
     - Gathering and interpreting data from various financial resources and databases
     - Compiling detailed reports on companies and providing investment recommendations
+    You can use the query_tech_news function to retrieve relevant news articles.
     """,
-    tools=[{"type": "code_interpreter"}],
+    tools=[
+        {"type": "code_interpreter"},
+        {
+            "type": "function",
+            "function": {
+                "name": "query_tech_news",
+                "description": "Query the tech news database for relevant articles",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The search query for news articles",
+                        },
+                        "num_results": {
+                            "type": "integer",
+                            "description": "The number of results to return (default: 5)",
+                        },
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+    ],
     model="gpt-3.5-turbo",
 )

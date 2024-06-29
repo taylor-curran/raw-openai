@@ -7,6 +7,7 @@ from typing_extensions import override
 from openai import AssistantEventHandler
 from prefect import task, flow
 
+
 @task
 def load_and_get_client():
     raise NotImplementedError("This task is not implemented yet.")
@@ -15,13 +16,14 @@ def load_and_get_client():
     api_key = os.getenv("OPENAI_API_KEY")
     return OpenAI(api_key=api_key)
 
+
 @task
 def create_thread_with_messages(client):
     """Create a thread and add initial messages."""
     thread = client.beta.threads.create()
     messages = [
         "Can you predict if Apple's stock price will increase tomorrow?",
-        "Please gather the latest news articles related to Apple and analyze if this news will likely have a positive or negative effect on the stock price."
+        "Please gather the latest news articles related to Apple and analyze if this news will likely have a positive or negative effect on the stock price.",
     ]
     for message in messages:
         client.beta.threads.messages.create(
@@ -30,6 +32,7 @@ def create_thread_with_messages(client):
             content=message,
         )
     return thread.id
+
 
 class EventHandler(AssistantEventHandler):
     @override
@@ -53,6 +56,7 @@ class EventHandler(AssistantEventHandler):
                     if output.type == "logs":
                         print(f"\n{output.logs}", flush=True)
 
+
 @task
 def run_assistant_with_event_handler(client, thread_id):
     """Run the assistant with event handling."""
@@ -64,11 +68,13 @@ def run_assistant_with_event_handler(client, thread_id):
     ) as stream:
         stream.until_done()
 
+
 @flow()
 def main():
     client = load_and_get_client()
     thread_id = create_thread_with_messages(client)
     run = run_assistant_with_event_handler(client, thread_id)
+
 
 if __name__ == "__main__":
     main()

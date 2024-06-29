@@ -1,61 +1,38 @@
-import requests
-
-chroma_db_url = "http://localhost:8000"  # Replace with your ChromaDB URL
-
-# TODO: Add type hints
-
-
-# Function to query ChromaDB
-def query_chroma_db(
-    query_texts=None,
-    query_embeddings=None,
-    n_results=10,
-    where=None,
-    where_document=None,
-    include=None,
-):
-    payload = {
-        "n_results": n_results,
-    }
-
-    if query_texts:
-        payload["query_texts"] = query_texts
-    if query_embeddings:
-        payload["query_embeddings"] = query_embeddings
-    if where:
-        payload["where"] = where
-    if where_document:
-        payload["where_document"] = where_document
-    if include:
-        payload["include"] = include
-
-    response = requests.post(f"{chroma_db_url}/query", json=payload)
-    response.raise_for_status()
-    return response.json()
+# tools.py
+import chromadb
+import chromadb.utils.embedding_functions as embedding_functions
+import os
+import json
 
 
-# Custom tool definition
-class TechNewsDBTool:
+class ChromaNewsDatabase:
     def __init__(self):
-        self.name = "tech_news_db_tool"
-        self.description = (
-            "Tool for querying the ChromaDB filled with technology news articles."
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.embedding_model_name = "text-embedding-ada-002"
+        self.chroma_db_path = "./chroma_db"
+
+        self.chroma_client = chromadb.PersistentClient(path=self.chroma_db_path)
+        self.openai_ef = embedding_functions.OpenAIEmbeddingFunction(
+            api_key=self.openai_api_key, model_name=self.embedding_model_name
+        )
+        self.collection = self.chroma_client.get_or_create_collection(
+            "news_articles", embedding_function=self.openai_ef
         )
 
-    def execute(
-        self,
-        query_texts=None,
-        query_embeddings=None,
-        n_results=10,
-        where=None,
-        where_document=None,
-        include=None,
+    def query_news(self, query_text, n_results=5):
+        results = self.collection.query(query_texts=[query_text], n_results=n_results)
+        return results
+
+
+def query_tech_news(query: str, num_results: int = 5) -> str:
+    news_db = ChromaNewsDatabase()
+    results = news_db.query_news(query, n_results=num_results)
+
+    # Format the results as a JSON string
+    formatted_results = []
+    for i, (doc, score) in enumerate(
+        zip(results["documents"][0], results["distances"][0])
     ):
-        return query_chroma_db(
-            query_texts=query_texts,
-            query_embeddings=query_embeddings,
-            n_results=n_results,
-            where=where,
-            where_document=where_document,
-            include=include,
-        )
+        formatted_results.append({"article": doc, "relevance_score": score})
+
+    return json.dumps(formatted_results)
