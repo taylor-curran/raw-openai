@@ -71,12 +71,13 @@ class EventHandler(AssistantEventHandler):
     def on_end(self):
         print("Event stream ended", flush=True)
 
+
 # TODO this still isn't working
 def run_assistant_with_event_handler(client, thread_id):
     """Run the assistant with event handling."""
     try:
         print(f"Starting assistant run for thread {thread_id}")
-        
+
         run = client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=analyst_assistant.id,
@@ -100,14 +101,14 @@ def run_assistant_with_event_handler(client, thread_id):
                     function_args = json.loads(tool_call.function.arguments)
                     if function_name == "query_tech_news":
                         output = query_tech_news(**function_args)
-                        tool_outputs.append({
-                            "tool_call_id": tool_call.id,
-                            "output": output,
-                        })
+                        tool_outputs.append(
+                            {
+                                "tool_call_id": tool_call.id,
+                                "output": output,
+                            }
+                        )
                 client.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread_id,
-                    run_id=run.id,
-                    tool_outputs=tool_outputs
+                    thread_id=thread_id, run_id=run.id, tool_outputs=tool_outputs
                 )
             elif run.status in ["failed", "cancelled", "expired"]:
                 print(f"Run ended with status: {run.status}")
